@@ -1,103 +1,116 @@
 import os
 import re
-from googletrans import Translator
-from gtts import gTTS # type: ignore
+from gtts import gTTS  # type: ignore
 import genanki
+from reverso_api import ReversoContextAPI
 
-# Инициализация переводчика
-translator = Translator()
+# Function to initialize Reverso Context API for translation
+def translate_text_with_reverso(text, from_lang='en', to_lang='ru'):
+    try:
+        # Initialize API with specified languages and text
+        api = ReversoContextAPI(text, '', from_lang, to_lang)
+        
+        # Get translation
+        translations = api.get_translations()
+        if translations:
+            return translations[0][1]  # Return the first translation
+        else:
+            print("Translation not found")
+            return None
+    except Exception as e:
+        print(f"Error during translation: {e}")
+        return None
 
-# Создаём глобальную колоду
-my_deck = genanki.Deck(
-    2059400110,  # ID колоды
-    'New Part of words' # Название колоды
-)
-
-# Создаём модель карточек
-my_model = genanki.Model(
-    1607392319,  # ID модели
-    'Basic',
-    fields=[
-        {'name': 'Front'},  # Русский текст
-        {'name': 'Back'},   # Английский текст с озвучкой
-    ],
-    templates=[
-        {
-            'name': 'Card 1',
-            'qfmt': '{{Front}}',  # Лицевая сторона
-            'afmt': '{{Back}}',   # Обратная сторона
-        }
-    ]
-)
-
-# Создаём папку для mp3, если её нет
-AUDIO_FOLDER = 'C:/ANKI_TESTS/mp3'
-os.makedirs(AUDIO_FOLDER, exist_ok=True)
-
-# Инициализация списка для аудиофайлов
-audio_files = []
-
-# Функция для очистки имени файла
-def sanitize_filename(text):
-    # Убираем недопустимые символы для Windows
-    return re.sub(r'[<>:"/\\|?*]', '_', text)
-
-# Функция перевода текста
-def translate_text(text, lang='ru'):
-    translation = translator.translate(text, dest=lang)  # Синхронный вызов
-    return translation.text
-
-# Функция озвучивания текста с использованием gTTS
+# Function for text-to-speech conversion using gTTS
 def text_to_speech(text, filename="output.mp3"):
     tts = gTTS(text, lang="en")
     tts.save(filename)
 
-# Функция добавления карточки в колоду
+# Function to create an Anki card
 def create_anki_card(russian_text, english_text, audio_file):
-    # Убираем ненужные символы
+    # Remove unnecessary symbols
     russian_text = russian_text.rstrip('.').replace("\n", " ").replace("\r", "")
     english_text = english_text.rstrip('.').replace("\n", " ").replace("\r", "")
     audio_file = audio_file.replace("\n", " ").replace("\r", "")
     
-    # Формируем поле Back с текстом и ссылкой на аудио
+    # Format the Back field with text and audio link
     back_field = f"{english_text} [sound:{audio_file}]"
     
-    # Создаём карточку
+    # Create a note
     my_note = genanki.Note(
         model=my_model,
-        fields=[russian_text, back_field]  # Лицевая и обратная стороны
+        fields=[russian_text, back_field]  # Front and back fields
     )
     
-    # Добавляем карточку в глобальную колоду
+    # Add the note to the global deck
     my_deck.add_note(my_note)
 
-# Чтение предложений из файла
+# Function to sanitize file names
+def sanitize_filename(text):
+    # Remove invalid characters for Windows
+    return re.sub(r'[<>:"/\\|?*]', '_', text)
+
+# Function to process sentences and generate Anki cards
+def process_sentences():
+    sentences = read_sentences_from_file()
+    for sentence in sentences:
+        translation = translate_text_with_reverso(sentence)
+        if translation:
+            print(f"Translation: {translation}")
+            
+            # Generate the filename for the audio
+            audio_filename = os.path.join(AUDIO_FOLDER, f"{sanitize_filename(sentence)}.mp3".replace(" ", "_"))
+            
+            # Convert the English text to speech
+            text_to_speech(sentence, filename=audio_filename)
+            
+            # Save the audio file path for the package
+            audio_files.append(audio_filename)
+            
+            # Create the Anki card with the Russian translation, English text, and audio
+            create_anki_card(translation, sentence, os.path.basename(audio_filename))
+        else:
+            print(f"Failed to translate: {sentence}")
+            continue  # Skip current iteration if translation failed
+
+# Function to read sentences from a file
 def read_sentences_from_file(filename='C:/ANKI_TESTS/words.txt'):
     with open(filename, 'r', encoding='utf-8') as file:
         sentences = [line.strip() for line in file.readlines()]
     return sentences
 
-# Обработка предложений
-def process_sentences():
-    sentences = read_sentences_from_file()
-    for sentence in sentences:
-        translation = translate_text(sentence)
-        print(f"Перевод: {translation}")
-        
-        # Генерация имени файла для аудио
-        audio_filename = os.path.join(AUDIO_FOLDER, f"{sanitize_filename(sentence)}.mp3".replace(" ", "_"))
-        
-        # Озвучиваем английский текст
-        text_to_speech(sentence, filename=audio_filename)
-        
-        # Сохраняем путь аудиофайла для добавления в пакет
-        audio_files.append(audio_filename)
-        
-        # Создаём карточку с русским переводом, английским текстом и аудио
-        create_anki_card(translation, sentence, os.path.basename(audio_filename))
+# Initialize the global deck
+my_deck = genanki.Deck(
+    2059400110,  # Deck ID
+    'REVERSO WITH BASIC CARD'  # Deck name
+)
 
-# Запуск обработки предложений
+# Create the Anki card model
+my_model = genanki.Model(
+    1607392319,  # Model ID
+    'Basic',
+    fields=[
+        {'name': 'Front'},  # Russian text
+        {'name': 'Back'},   # English text with audio
+    ],
+    templates=[
+        {
+            'name': 'Card 1',
+            'qfmt': '{{Front}}',  # Front side
+            'afmt': '{{Back}}',   # Back side
+        }
+    ]
+)
+
+# Create the folder for mp3 files if it doesn't exist
+AUDIO_FOLDER = 'C:/ANKI_TESTS/mp3'
+os.makedirs(AUDIO_FOLDER, exist_ok=True)
+
+# Initialize the list to store audio files
+audio_files = []
+
+# Run the sentence processing
 process_sentences()
 
-# Сохраняем колоду в файл .apkg, включая аудиофайлы
+# Save the deck to a .apkg file including the media files
 genanki.Package(my_deck, media_files=audio_files).write_to_file('C:/ANKI_TESTS/output.apkg')
