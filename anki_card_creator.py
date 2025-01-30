@@ -1,4 +1,5 @@
 import os
+import re
 from googletrans import Translator
 from gtts import gTTS # type: ignore
 import genanki
@@ -9,13 +10,13 @@ translator = Translator()
 # Создаём глобальную колоду
 my_deck = genanki.Deck(
     2059400110,  # ID колоды
-    'English-Russian Deck'  # Название колоды
+    'New Part of words' # Название колоды
 )
 
 # Создаём модель карточек
 my_model = genanki.Model(
     1607392319,  # ID модели
-    'Basic Model',
+    'Basic',
     fields=[
         {'name': 'Front'},  # Русский текст
         {'name': 'Back'},   # Английский текст с озвучкой
@@ -35,6 +36,11 @@ os.makedirs(AUDIO_FOLDER, exist_ok=True)
 
 # Инициализация списка для аудиофайлов
 audio_files = []
+
+# Функция для очистки имени файла
+def sanitize_filename(text):
+    # Убираем недопустимые символы для Windows
+    return re.sub(r'[<>:"/\\|?*]', '_', text)
 
 # Функция перевода текста
 def translate_text(text, lang='ru'):
@@ -79,7 +85,7 @@ def process_sentences():
         print(f"Перевод: {translation}")
         
         # Генерация имени файла для аудио
-        audio_filename = os.path.join(AUDIO_FOLDER, f"{sentence}.mp3".replace(" ", "_"))
+        audio_filename = os.path.join(AUDIO_FOLDER, f"{sanitize_filename(sentence)}.mp3".replace(" ", "_"))
         
         # Озвучиваем английский текст
         text_to_speech(sentence, filename=audio_filename)
