@@ -2,24 +2,14 @@ import os
 import re
 from gtts import gTTS  # type: ignore
 import genanki
-from reverso_api import ReversoContextAPI
+from googletrans import Translator
 
-# Function to initialize Reverso Context API for translation
-def translate_text_with_reverso(text, from_lang='en', to_lang='ru'):
-    try:
-        # Initialize API with specified languages and text
-        api = ReversoContextAPI(text, '', from_lang, to_lang)
-        
-        # Get translation
-        translations = api.get_translations()
-        if translations:
-            return translations[0][1]  # Return the first translation
-        else:
-            print("Translation not found")
-            return None
-    except Exception as e:
-        print(f"Error during translation: {e}")
-        return None
+translator = Translator()
+
+# Function to translate text
+def translate_text(text, lang='ru'):
+    translation = translator.translate(text, dest=lang)  # Sync
+    return translation.text
 
 # Function for text-to-speech conversion using gTTS
 def text_to_speech(text, filename="output.mp3"):
@@ -54,7 +44,7 @@ def sanitize_filename(text):
 def process_sentences():
     sentences = read_sentences_from_file()
     for sentence in sentences:
-        translation = translate_text_with_reverso(sentence)
+        translation = translate_text(sentence)
         if translation:
             print(f"Translation: {translation}")
             
@@ -82,7 +72,7 @@ def read_sentences_from_file(filename='C:/ANKI_TESTS/words.txt'):
 # Initialize the global deck
 my_deck = genanki.Deck(
     2059400110,  # Deck ID
-    'REVERSO WITH BASIC CARD'  # Deck name
+    'INVERSION'  # Deck name
 )
 
 # Create the Anki card model
