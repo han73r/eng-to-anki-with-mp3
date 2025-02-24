@@ -1,15 +1,45 @@
 import os
 import re
+import shutil
 from gtts import gTTS  # type: ignore
 import genanki
 from googletrans import Translator
 
 translator = Translator()
+deckName = 'Words pack'
+
+# Function to delete the MP3 folder and the old Anki .apkg file if they exist
+def clean_up():
+    # Remove the old MP3 folder and its contents
+    if os.path.exists(AUDIO_FOLDER):
+        shutil.rmtree(AUDIO_FOLDER)
+    
+    # Remove the previous .apkg file if it exists
+    if os.path.exists('C:/ANKI_TESTS/output.apkg'):
+        os.remove('C:/ANKI_TESTS/output.apkg')
 
 # Function to translate text
 def translate_text(text, lang='ru'):
-    translation = translator.translate(text, dest=lang)  # Sync
-    return translation.text
+    # Find words enclosed in **asterisks** (e.g., **expertise)
+    bold_words = re.findall(r'\*\*(.*?)\*\*', text)
+    
+    # Remove the **asterisks** from the text for translation
+    text_without_bold = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+
+    # Translate the text without bold formatting
+    translation = translator.translate(text_without_bold, dest=lang).text
+    
+    # Reapply bold formatting to the translated text
+    for word in bold_words:
+        translated_word = translator.translate(word, dest=lang).text
+        # Add <b> tags to the translated words
+        translation = re.sub(rf'\b{translated_word}\b', f'<b>{translated_word}</b>', translation, flags=re.IGNORECASE)
+    
+    # Also apply the bold to the original English text
+    text_bolded = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text)
+
+    return translation, text_bolded
+
 
 # Function for text-to-speech conversion using gTTS
 def text_to_speech(text, filename="output.mp3"):
@@ -37,14 +67,25 @@ def create_anki_card(russian_text, english_text, audio_file):
 
 # Function to sanitize file names
 def sanitize_filename(text):
-    # Remove invalid characters for Windows
-    return re.sub(r'[<>:"/\\|?*]', '_', text)
+    # Replace invalid characters for Windows file system
+    sanitized_text = re.sub(r'[<>:"/\\|?*]', '_', text)
+    
+    # Replace multiple underscores and consecutive dots with a single one
+    sanitized_text = re.sub(r'_+', '_', sanitized_text)  # Replace multiple underscores with one
+    sanitized_text = re.sub(r'\.+', '.', sanitized_text)  # Replace consecutive dots with a single dot
+    
+    # Make sure the file doesn't end with a dot (Windows doesn't allow this)
+    if sanitized_text.endswith('.'):
+        sanitized_text = sanitized_text[:-1]
+
+    return sanitized_text
+
 
 # Function to process sentences and generate Anki cards
 def process_sentences():
     sentences = read_sentences_from_file()
     for sentence in sentences:
-        translation = translate_text(sentence)
+        translation, sentence_bolded = translate_text(sentence)
         if translation:
             print(f"Translation: {translation}")
             
@@ -58,7 +99,7 @@ def process_sentences():
             audio_files.append(audio_filename)
             
             # Create the Anki card with the Russian translation, English text, and audio
-            create_anki_card(translation, sentence, os.path.basename(audio_filename))
+            create_anki_card(translation, sentence_bolded, os.path.basename(audio_filename))
         else:
             print(f"Failed to translate: {sentence}")
             continue  # Skip current iteration if translation failed
@@ -72,7 +113,7 @@ def read_sentences_from_file(filename='C:/ANKI_TESTS/words.txt'):
 # Initialize the global deck
 my_deck = genanki.Deck(
     2059400110,  # Deck ID
-    'INVERSION'  # Deck name
+    deckName  # Deck name
 )
 
 # Create the Anki card model
@@ -94,6 +135,10 @@ my_model = genanki.Model(
 
 # Create the folder for mp3 files if it doesn't exist
 AUDIO_FOLDER = 'C:/ANKI_TESTS/mp3'
+
+# Clean up the previous files before starting
+clean_up()
+
 os.makedirs(AUDIO_FOLDER, exist_ok=True)
 
 # Initialize the list to store audio files
