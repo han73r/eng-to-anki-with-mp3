@@ -68,7 +68,8 @@ def create_anki_card(russian_text, english_text, audio_file):
 # Function to sanitize file names
 def sanitize_filename(text):
     # Replace invalid characters for Windows file system
-    sanitized_text = re.sub(r'[<>:"/\\|?*]', '_', text)
+    sanitized_text = re.sub(r'[<>:"/\\|?*\']', '_', text)
+    sanitized_text = re.sub(r'[‘’]', '_', sanitized_text)
     
     # Replace multiple underscores and consecutive dots with a single one
     sanitized_text = re.sub(r'_+', '_', sanitized_text)  # Replace multiple underscores with one
