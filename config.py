@@ -32,6 +32,11 @@ AUDIO_DELAY_SEC = 1.0
 ANKI_MODEL_ID = 1607392319
 STOP_WORDS = {"the", "a", "an", "to", "of", "over", "about", "around", "into", "out"}
 
+# --- Валидация и лимиты ---
+BAD_WORD_ROWS_PATH = BASE_DIR / "bad_word_rows.txt"
+TARGET_SENTENCE_COUNT = 3
+DEFAULT_MAX_ROWS = None
+
 # --- Вывод ---
 SENTENCE_PREVIEW_LENGTH = 80
 MAX_HINT_LENGTH = 60

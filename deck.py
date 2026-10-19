@@ -30,11 +30,14 @@ class MissingDataError(Exception):
 
 @dataclass(frozen=True)
 class CardData:
-    sentence: str
+    sentence: str                  # отображаемое предложение (с сохранением <b>)
+    plain_sentence: str            # чистый текст предложения (без разметки)
     word: str
     hint: str
     translation: str
     audio_name: str
+    topic: str = ""
+    tags: tuple[str, ...] = ()
 
 
 def mask_word(word: str) -> str:
@@ -78,23 +81,51 @@ def collect_cards(
         else:
             for word in s.marked_words:
                 cards.append(CardData(
-                    s.text, word, entry.words[word].hint, entry.translation, audio.name_for(s.text)
+                    sentence=s.display_text or s.text,
+                    plain_sentence=s.text,
+                    word=word,
+                    hint=entry.words[word].hint,
+                    translation=entry.translation,
+                    audio_name=audio.name_for(s.text),
+                    topic=s.topic,
+                    tags=s.tags,
                 ))
     if problems:
         raise MissingDataError(problems)
     return cards
 
 
+def build_decks(base_name: str, cards: list[CardData]) -> list[genanki.Deck]:
+    """Создаёт подколоды по темам (Option A: base_name::topic) и назначает теги карточкам."""
+    by_topic: dict[str, list[CardData]] = {}
+    for c in cards:
+        by_topic.setdefault(c.topic, []).append(c)
+
+    decks: list[genanki.Deck] = []
+    for topic, topic_cards in by_topic.items():
+        deck_name = f"{base_name}::{topic}" if topic else base_name
+        deck_id = zlib.crc32(deck_name.encode("utf-8"))
+        deck = genanki.Deck(deck_id, deck_name)
+        for c in topic_cards:
+            front = build_front(c.sentence, c.word, c.hint)
+            back = build_back(c.sentence, c.word, c.translation, c.audio_name)
+            note = genanki.Note(model=ANKI_MODEL, fields=[front, back], tags=list(c.tags))
+            deck.add_note(note)
+        decks.append(deck)
+    return decks
+
+
 def build_deck(name: str, cards: list[CardData]) -> genanki.Deck:
+    """Для обратной совместимости: собирает все карточки в одну колоду."""
     deck = genanki.Deck(zlib.crc32(name.encode("utf-8")), name)
     for c in cards:
         front = build_front(c.sentence, c.word, c.hint)
         back = build_back(c.sentence, c.word, c.translation, c.audio_name)
-        deck.add_note(genanki.Note(model=ANKI_MODEL, fields=[front, back]))
+        deck.add_note(genanki.Note(model=ANKI_MODEL, fields=[front, back], tags=list(c.tags)))
     return deck
 
 
-def write_package(deck: genanki.Deck, media_paths: list[Path], output: Path) -> None:
-    package = genanki.Package(deck)
+def write_package(deck_or_decks: genanki.Deck | list[genanki.Deck], media_paths: list[Path], output: Path) -> None:
+    package = genanki.Package(deck_or_decks)
     package.media_files = [str(p) for p in media_paths]
     package.write_to_file(str(output))

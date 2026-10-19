@@ -52,31 +52,38 @@ pip install genanki gtts requests
 
 ## Input format
 
-One sentence per line. Wrap each word or phrase you want to learn in `[[...]]`:
+The input files support a multi-field pipe-separated format (one row per line):
 
 ```text
-She decided to [[look into]] the matter.
-I [[like]] green [[tea]].
-Lines without any marked word are ignored.
+grind the coffee | [Daily Life & Survival] | Formal | Present Continuous | Advanced Passive | **Fresh roasted beans are ground** as baristas [[grind the coffee]] every morning.
 ```
 
-- Phrases with several words are fine: `[[look into]]`.
-- A sentence with several marked words produces several cards (one per word).
-- Blank lines are ignored.
-- Files must be UTF-8 encoded.
+1. **Target Word / Phrase (Field 1)**: Identifies and groups the rows (e.g., `grind the coffee`).
+   - Each target phrase is validated to ensure it has **exactly 3 rows**.
+   - If a target phrase has fewer or more than 3 rows, it is recorded in `bad_word_rows.txt` and a warning is printed to the console.
+2. **Main Topic (Field 2)**: Wrapped in brackets, e.g. `[Daily Life & Survival]`.
+   - Cards are grouped into separate subdecks by topic inside the `.apkg` (e.g., `words::Daily Life & Survival`).
+   - Added as a card tag in lowercase `snake_case` (e.g., `daily_life_and_survival`).
+3. **Tags (Variable fields)**: Any number of pipe-separated tags between topic and sentence.
+   - Converted to lowercase `snake_case` (e.g., `Formal` → `formal`, `Present Continuous` → `present_continuous`, `Advanced Passive` → `advanced_passive`, `C1` → `c1`).
+4. **Sentence (Final field)**: The sentence with target words wrapped in `[[...]]`.
+   - Any part marked with Markdown bold `**...**` (e.g., `**Fresh roasted beans are ground**`) is preserved as bold on the card.
+   - The sentence itself must not contain any `|` characters.
 
-The file name becomes the deck name: `input/words 01.txt` → `output/words 01.apkg`.
+*(Legacy single-field lines without `|` delimiters, such as `She decided to [[look into]] the matter.`, are also supported for backward compatibility).*
 
 ---
 
 ## What the cards look like
 
-For the sentence `She decided to [[look into]] the matter.`:
+For the sentence above:
 
 | Side | Content |
 |------|---------|
-| **Front** | `She decided to .. in.. the matter.`<br>`(изучить)` — the sentence with the word partially masked, plus a Russian hint for the word *in this context* |
-| **Back** | Russian translation of the whole sentence, then the original sentence with the word in **bold**, then an audio player for the sentence |
+| **Front** | `<b>Fresh roasted beans are ground</b> as baristas gr.. .. co.. every morning.`<br>`(молоть кофе)` — sentence with target word masked, Markdown bold preserved, plus in-context Russian hint |
+| **Back** | Russian translation of the sentence, then original sentence with target word highlighted (`<b>grind the coffee</b>`) and bold formatting preserved, then audio player |
+
+Tags on the card: `daily_life_and_survival`, `formal`, `present_continuous`, `advanced_passive`.
 
 Short words and stop words (`the`, `to`, `of`, ...) are fully masked as `..`; longer words keep their first one or two letters.
 
@@ -89,6 +96,7 @@ anki_builder/
 ├── *.py                      # the program
 ├── input/                    # your .txt files go here
 ├── output/                   # finished .apkg files appear here
+├── bad_word_rows.txt         # created if any target phrase has != 3 rows
 └── cache/
     ├── translation_cache.json   # translations (human-readable, safe to inspect)
     ├── audio/                   # generated .mp3 files, named by sentence hash
@@ -140,6 +148,7 @@ python main.py <command> [files...] [options]
 | `--limit N` | `audio`, `all` | Generate at most N audio files per run |
 | `--force` | `translate`, `audio`, `build`, `all` | Do not skip files that already have an `.apkg` |
 | `--show` | `plan` | Print every line of every chunk |
+| `--max-rows N` | all | Process at most N rows (useful for tests and partial runs) |
 
 ### Recommended workflow
 
@@ -152,6 +161,30 @@ python main.py translate                # 5. translate the rest
 python main.py audio --limit 5          # 6. try a few audio files
 python main.py all                      # 7. finish everything
 ```
+
+### Running a trial run with limited rows
+
+To test or process only the first 15 rows of a specific file:
+
+```bash
+python main.py all input/your_file.txt --max-rows 15
+```
+
+Or step-by-step:
+
+```bash
+python main.py parse input/your_file.txt --max-rows 15      # check parsed targets, topics, tags
+python main.py translate input/your_file.txt --max-rows 15  # translate only 15 rows
+python main.py show input/your_file.txt --max-rows 15       # review cached hints
+python main.py audio input/your_file.txt --max-rows 15      # generate audio for those 15 rows
+python main.py build input/your_file.txt --max-rows 15      # build .apkg with topic subdecks
+```
+
+> **Note:** If `output/your_file.apkg` already exists, add `--force` to overwrite it:
+> ```bash
+> python main.py all input/your_file.txt --max-rows 15 --force
+> ```
+
 
 ---
 
@@ -285,13 +318,13 @@ Each block has a single responsibility and can be tested in isolation.
 |------|----------------|:---:|
 | `main.py` | Command-line interface, wires the blocks together | – |
 | `config.py` | All settings and paths | – |
-| `parsing.py` | `.txt` → sentences with marked words | no |
+| `parsing.py` | Multi-field `.txt` parser, tag normalizer, bold renderer, target count validator | no |
 | `chunking.py` | Splits lines into chunks by size and count | no |
 | `transport.py` | The only code that talks to Google Translate | yes |
 | `translation.py` | Builds jobs, sends chunks, verifies answers, extracts hints | via transport |
 | `cache.py` | JSON translation cache | no |
 | `audio.py` | gTTS with an on-disk audio cache | yes |
-| `deck.py` | Card text and `.apkg` building (genanki) | no |
+| `deck.py` | Card formatting, topic subdeck builder, note tagging, `.apkg` packager (genanki) | no |
 | `inputs.py` | Matching of `input/*.txt` and `output/*.apkg` | no |
 | `util.py` | Logging and small helpers | no |
 | `test_*.py` | Offline unit tests | no |

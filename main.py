@@ -27,9 +27,10 @@ import argparse
 
 from audio import AudioError, AudioStore
 from cache import TranslationCache
-from config import (AUDIO_DIR, CACHE_DIR, CACHE_PATH, INPUT_DIR, OUTPUT_DIR,
-                    SENTENCE_PREVIEW_LENGTH)
-from deck import MissingDataError, build_deck, collect_cards, write_package
+from config import (AUDIO_DIR, BAD_WORD_ROWS_PATH, CACHE_DIR, CACHE_PATH,
+                    INPUT_DIR, OUTPUT_DIR, SENTENCE_PREVIEW_LENGTH)
+from deck import (MissingDataError, build_deck, build_decks, collect_cards,
+                  write_package)
 from inputs import orphan_outputs, output_path, split_by_status
 from parsing import Sentence, read_sentences
 from transport import GoogleTransport, TransportError
@@ -39,7 +40,15 @@ from util import log, shorten
 
 def cmd_parse(path, sentences, cache, args) -> int:
     for i, s in enumerate(sentences, 1):
-        log(f"{i:3}. {s.text}\n     words: {', '.join(s.marked_words)}")
+        meta = []
+        if s.target:
+            meta.append(f"target: {s.target}")
+        if s.topic:
+            meta.append(f"topic: {s.topic}")
+        if s.tags:
+            meta.append(f"tags: [{', '.join(s.tags)}]")
+        tag_info = f" ({'; '.join(meta)})" if meta else ""
+        log(f"{i:3}. {s.text}{tag_info}\n     words: {', '.join(s.marked_words)}")
     log(f"Total: {len(sentences)} sentences, {sum(len(s.marked_words) for s in sentences)} words")
     return 0
 
@@ -119,10 +128,10 @@ def cmd_build(path, sentences, cache, args) -> int:
         for problem in error.problems:
             log(f"  {problem}")
         return 1
-    deck = build_deck(path.stem, cards)
+    decks = build_decks(path.stem, cards)
     media = [store.path_for(t) for t in dict.fromkeys(s.text for s in sentences)]
-    write_package(deck, media, output)
-    log(f"Created: {output} ({len(cards)} cards)")
+    write_package(decks, media, output)
+    log(f"Created: {output} ({len(decks)} topic decks, {len(cards)} cards)")
     return 0
 
 
@@ -148,6 +157,7 @@ def build_parser() -> argparse.ArgumentParser:
     common.add_argument("--limit", type=int, default=None, help="для audio/all: максимум озвучек за запуск")
     common.add_argument("--force", action="store_true", help="для build/all: перезаписать .apkg")
     common.add_argument("--show", action="store_true", help="для plan: печатать все строки чанков")
+    common.add_argument("--max-rows", type=int, default=None, help="максимум строк для обработки (для тестов)")
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -180,8 +190,9 @@ def main() -> int:
             log(f"  note: output/{path.name} has no matching .txt in input/")
 
     cache = TranslationCache(CACHE_PATH)
+    BAD_WORD_ROWS_PATH.unlink(missing_ok=True)
     for path in files:
-        sentences: list[Sentence] = read_sentences(path)
+        sentences: list[Sentence] = read_sentences(path, max_rows=args.max_rows)
         if not sentences:
             log(f"SKIP: {path.name} (no [[marked]] words)")
             continue
