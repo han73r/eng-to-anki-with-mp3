@@ -50,11 +50,14 @@ class Sentence:
         parts = [p.strip() for p in line.split("|")]
         if len(parts) >= 3:
             target = parts[0]
-            raw_topic = parts[1]
-            topic = raw_topic.strip("[]").strip()
-            raw_tags = parts[1:-1]
+            middle_fields = parts[1:-1]
             sentence_part = parts[-1]
-            tags = tuple(normalize_tag(t) for t in raw_tags if normalize_tag(t))
+            raw_topic = next(
+                (p for p in middle_fields if p.startswith("[") and p.endswith("]")),
+                middle_fields[0] if middle_fields else "",
+            )
+            topic = normalize_tag(raw_topic)
+            tags = tuple(normalize_tag(t) for t in middle_fields if normalize_tag(t))
         else:
             target = ""
             topic = ""

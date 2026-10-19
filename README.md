@@ -61,10 +61,10 @@ grind the coffee | [Daily Life & Survival] | Formal | Present Continuous | Advan
 1. **Target Word / Phrase (Field 1)**: Identifies and groups the rows (e.g., `grind the coffee`).
    - Each target phrase is validated to ensure it has **exactly 3 rows**.
    - If a target phrase has fewer or more than 3 rows, it is recorded in `bad_word_rows.txt` and a warning is printed to the console.
-2. **Main Topic (Field 2)**: Wrapped in brackets, e.g. `[Daily Life & Survival]`.
-   - Cards are grouped into separate subdecks by topic inside the `.apkg` (e.g., `words::Daily Life & Survival`).
-   - Added as a card tag in lowercase `snake_case` (e.g., `daily_life_and_survival`).
-3. **Tags (Variable fields)**: Any number of pipe-separated tags between topic and sentence.
+2. **Main Topic**: Any middle field enclosed in brackets, e.g. `[Daily Life & Survival]` or `[Business & Economics]`.
+   - Cards are grouped into separate subdecks by topic inside the `.apkg`, always in lowercase `snake_case` (e.g., `words::daily_life_and_survival`, `words::business_and_economics`).
+   - Also added as a card tag in lowercase `snake_case` (e.g., `daily_life_and_survival`).
+3. **Tags (Variable middle fields)**: All other fields between the target and sentence (such as pattern type `chunk`/`pattern`, CEFR level `B2`/`C1`, style `Formal`/`Spoken`, tense `Future Simple`).
    - Converted to lowercase `snake_case` (e.g., `Formal` → `formal`, `Present Continuous` → `present_continuous`, `Advanced Passive` → `advanced_passive`, `C1` → `c1`).
 4. **Sentence (Final field)**: The sentence with target words wrapped in `[[...]]`.
    - Any part marked with Markdown bold `**...**` (e.g., `**Fresh roasted beans are ground**`) is preserved as bold on the card.

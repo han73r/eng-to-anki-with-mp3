@@ -35,7 +35,7 @@ class ParsingTests(unittest.TestCase):
         )
         s = Sentence.parse(line)
         self.assertEqual(s.target, "grind the coffee")
-        self.assertEqual(s.topic, "Daily Life & Survival")
+        self.assertEqual(s.topic, "daily_life_and_survival")
         self.assertEqual(
             s.tags,
             ("daily_life_and_survival", "formal", "present_continuous", "advanced_passive"),
@@ -49,6 +49,37 @@ class ParsingTests(unittest.TestCase):
             "<b>Fresh roasted beans are ground</b> as baristas grind the coffee every morning.",
         )
         self.assertEqual(s.marked_words, ("grind the coffee",))
+
+    def test_parse_variable_topic_position(self):
+        line1 = (
+            "infringement of my human rights | chunk | C1 | [Business & Economics] | Neutral | "
+            "Future Simple | The court [[will rule on this infringement of my human rights]] next month."
+        )
+        s1 = Sentence.parse(line1)
+        self.assertEqual(s1.target, "infringement of my human rights")
+        self.assertEqual(s1.topic, "business_and_economics")
+        self.assertEqual(
+            s1.tags,
+            ("chunk", "c1", "business_and_economics", "neutral", "future_simple"),
+        )
+
+        line2 = (
+            "unauthorized access beyond this point | chunk | B2 | [IT & Software] | Neutral | "
+            "Future Continuous | Automated firewalls [[will be preventing unauthorized access beyond this point]] after the update."
+        )
+        s2 = Sentence.parse(line2)
+        self.assertEqual(s2.target, "unauthorized access beyond this point")
+        self.assertEqual(s2.topic, "it_and_software")
+        self.assertIn("it_and_software", s2.tags)
+
+        line3 = (
+            "Do you have the authority to do that? | pattern | B1 | [Behavioral & Work] | Spoken | "
+            "Past Continuous | I was wondering, \"[[Do you have the authority to do that?]]\", during the meeting."
+        )
+        s3 = Sentence.parse(line3)
+        self.assertEqual(s3.target, "Do you have the authority to do that?")
+        self.assertEqual(s3.topic, "behavioral_and_work")
+        self.assertIn("behavioral_and_work", s3.tags)
 
     def test_parse_legacy_single_field_line(self):
         line = "She decided to [[look into]] the matter."

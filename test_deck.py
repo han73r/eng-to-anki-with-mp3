@@ -35,7 +35,7 @@ class DeckTests(unittest.TestCase):
                 hint="hint1",
                 translation="перевод 1",
                 audio_name="audio1.mp3",
-                topic="Daily Life & Survival",
+                topic="daily_life_and_survival",
                 tags=("daily_life_and_survival", "formal"),
             ),
             CardData(
@@ -45,18 +45,18 @@ class DeckTests(unittest.TestCase):
                 hint="hint2",
                 translation="перевод 2",
                 audio_name="audio2.mp3",
-                topic="Business & Work",
+                topic="business_and_work",
                 tags=("business_and_work", "spoken"),
             ),
         ]
         decks = build_decks("MyFile", cards)
         self.assertEqual(len(decks), 2)
         deck_names = {d.name for d in decks}
-        self.assertEqual(deck_names, {"MyFile::Daily Life & Survival", "MyFile::Business & Work"})
+        self.assertEqual(deck_names, {"MyFile::daily_life_and_survival", "MyFile::business_and_work"})
 
         for deck in decks:
             for note in deck.notes:
-                if deck.name == "MyFile::Daily Life & Survival":
+                if deck.name == "MyFile::daily_life_and_survival":
                     self.assertEqual(note.tags, ["daily_life_and_survival", "formal"])
                 else:
                     self.assertEqual(note.tags, ["business_and_work", "spoken"])
